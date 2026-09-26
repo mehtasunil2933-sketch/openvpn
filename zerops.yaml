@@ -17,6 +17,8 @@ zerops:
         - sudo mkdir -p /var/lib/openvpn /var/lib/vpnbackup
 
       envVariables:
+        VPN_PUBLIC_HOST: 2a00:1ed0:1100::160:0:3252
+        VPN_UDP_PORT: "51194"
         R2_BUCKET: openvpn-backup
         RCLONE_CONFIG_R2_TYPE: s3
         RCLONE_CONFIG_R2_PROVIDER: Cloudflare
@@ -24,10 +26,29 @@ zerops:
         RCLONE_CONFIG_R2_ACL: private
 
       start: >
-        docker run --rm --name openvpn-as --network=host
+        bash -c '
+        docker rm -f openvpn-as 2>/dev/null || true;
+        docker run -d --name openvpn-as --network=host
         --privileged --cap-add=NET_ADMIN --device /dev/net/tun
         -v /var/lib/openvpn:/openvpn
-        openvpn/openvpn-as:3.2.2-413ca39f-Ubuntu24
+        openvpn/openvpn-as:3.2.2-413ca39f-Ubuntu24;
+        for i in $(seq 1 90); do
+          docker exec openvpn-as sacli VPNStatus >/dev/null 2>&1 && break;
+          sleep 2;
+        done;
+        docker exec openvpn-as sacli --key "host.name" --value "$VPN_PUBLIC_HOST" ConfigPut;
+        docker exec openvpn-as sacli --key "vpn.daemon.0.listen.ip_address" --value "::" ConfigPut;
+        docker exec openvpn-as sacli --key "vpn.daemon.0.listen.port" --value "$VPN_UDP_PORT" ConfigPut;
+        docker exec openvpn-as sacli --key "vpn.daemon.0.listen.protocol" --value "udp" ConfigPut;
+        docker exec openvpn-as sacli --key "vpn.server.daemon.tcp.port" --value "8443" ConfigPut;
+        docker exec openvpn-as sacli --key "vpn.client.routing.reroute_gw" --value "true" ConfigPut;
+        docker exec openvpn-as sacli --key "vpn.client.routing.reroute_dns" --value "true" ConfigPut;
+        docker exec openvpn-as sacli --key "cs.https.ip_address" --value "::" ConfigPut;
+        docker exec openvpn-as sacli --user openvpn --new_pass "$OPENVPN_ADMIN_PASSWORD" SetLocalPassword;
+        docker exec openvpn-as sacli --user openvpn --key "prop_superuser" --value "true" UserPropPut;
+        docker exec openvpn-as sacli start;
+        exec docker logs -f openvpn-as
+        '
 
       ports:
         - port: 51194
