@@ -40,13 +40,12 @@ zerops:
         docker exec openvpn-as sacli --key "vpn.daemon.0.listen.ip_address" --value "::" ConfigPut;
         docker exec openvpn-as sacli --key "vpn.daemon.0.listen.port" --value "$VPN_UDP_PORT" ConfigPut;
         docker exec openvpn-as sacli --key "vpn.daemon.0.listen.protocol" --value "udp" ConfigPut;
-        docker exec openvpn-as sacli --key "vpn.server.daemon.tcp.port" --value "8443" ConfigPut;
         docker exec openvpn-as sacli --key "vpn.client.routing.reroute_gw" --value "true" ConfigPut;
         docker exec openvpn-as sacli --key "vpn.client.routing.reroute_dns" --value "true" ConfigPut;
-        docker exec openvpn-as sacli --key "cs.https.ip_address" --value "::" ConfigPut;
         docker exec openvpn-as sacli --user openvpn --new_pass "$OPENVPN_ADMIN_PASSWORD" SetLocalPassword;
         docker exec openvpn-as sacli --user openvpn --key "prop_superuser" --value "true" UserPropPut;
-        docker exec openvpn-as sacli start;
+        docker restart openvpn-as;
+        sleep 45;
         exec docker logs -f openvpn-as
         '
 
