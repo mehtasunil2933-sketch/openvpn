@@ -1,0 +1,19 @@
+project:
+  name: vpn
+  tags:
+    - vpn
+
+services:
+  - hostname: vpn
+    type: docker@latest
+    minContainers: 1
+    maxContainers: 1
+    enableSubdomainAccess: true
+    verticalAutoscaling:
+      cpuMode: SHARED
+      minCpu: 1
+      maxCpu: 1
+      minRam: 1
+      maxRam: 1
+      minDisk: 10
+      maxDisk: 10
