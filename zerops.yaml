@@ -1,0 +1,67 @@
+zerops:
+  - setup: vpn
+
+    build:
+      # base cannot be docker — the build phase runs in containers, not VMs
+      base: ubuntu@22.04
+      buildCommands:
+        - echo "nothing to build"
+      deployFiles: ./
+
+    run:
+      base: docker@latest
+
+      prepareCommands:
+        - docker image pull openvpn/openvpn-as:2.14.3
+        - docker image pull rclone/rclone:1.71.0
+        - sudo mkdir -p /var/lib/openvpn /var/lib/vpnbackup
+
+      envVariables:
+        R2_BUCKET: openvpn-backup
+        RCLONE_CONFIG_R2_TYPE: s3
+        RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+        RCLONE_CONFIG_R2_REGION: auto
+        RCLONE_CONFIG_R2_ACL: private
+
+      start: >
+        docker run --rm --name openvpn-as --network=host
+        --privileged --cap-add=NET_ADMIN --device /dev/net/tun
+        -v /var/lib/openvpn:/openvpn
+        openvpn/openvpn-as:2.14.3
+
+      ports:
+        - port: 943
+          httpSupport: true
+        - port: 443
+          protocol: tcp
+        - port: 1194
+          protocol: udp
+
+      crontab:
+        - command: >
+            set -e;
+            STAMP=$(date -u -I);
+            sudo tar -czf /var/lib/vpnbackup/openvpn-$STAMP.tar.gz -C /var/lib/openvpn .;
+            docker run --rm
+            -e RCLONE_CONFIG_R2_TYPE
+            -e RCLONE_CONFIG_R2_PROVIDER
+            -e RCLONE_CONFIG_R2_REGION
+            -e RCLONE_CONFIG_R2_ACL
+            -e RCLONE_CONFIG_R2_ENDPOINT
+            -e RCLONE_CONFIG_R2_ACCESS_KEY_ID
+            -e RCLONE_CONFIG_R2_SECRET_ACCESS_KEY
+            -v /var/lib/vpnbackup:/data
+            rclone/rclone:1.71.0
+            copyto /data/openvpn-$STAMP.tar.gz r2:$R2_BUCKET/openvpn/openvpn-$STAMP.tar.gz;
+            docker run --rm
+            -e RCLONE_CONFIG_R2_TYPE -e RCLONE_CONFIG_R2_PROVIDER
+            -e RCLONE_CONFIG_R2_REGION -e RCLONE_CONFIG_R2_ACL
+            -e RCLONE_CONFIG_R2_ENDPOINT
+            -e RCLONE_CONFIG_R2_ACCESS_KEY_ID
+            -e RCLONE_CONFIG_R2_SECRET_ACCESS_KEY
+            -v /var/lib/vpnbackup:/data
+            rclone/rclone:1.71.0
+            copyto /data/openvpn-$STAMP.tar.gz r2:$R2_BUCKET/openvpn/latest.tar.gz;
+            sudo find /var/lib/vpnbackup -name 'openvpn-*.tar.gz' -mtime +3 -delete
+          timing: "15 3 * * *"
+          allContainers: false
