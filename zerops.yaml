@@ -30,12 +30,12 @@ zerops:
         openvpn/openvpn-as:3.2.2-413ca39f-Ubuntu24
 
       ports:
+        - port: 51194
+          protocol: udp
+        - port: 8443
+          protocol: tcp
         - port: 943
           protocol: tcp
-        - port: 443
-          protocol: tcp
-        - port: 1194
-          protocol: udp
 
       crontab:
         - command: >
