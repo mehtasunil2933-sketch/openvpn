@@ -12,8 +12,8 @@ zerops:
       base: docker@latest
 
       prepareCommands:
-        - docker image pull openvpn/openvpn-as:2.14.3
-        - docker image pull rclone/rclone:1.71.0
+        - docker image pull openvpn/openvpn-as:3.2.2-413ca39f-Ubuntu24
+        - docker image pull rclone/rclone:1.75.1
         - sudo mkdir -p /var/lib/openvpn /var/lib/vpnbackup
 
       envVariables:
@@ -27,7 +27,7 @@ zerops:
         docker run --rm --name openvpn-as --network=host
         --privileged --cap-add=NET_ADMIN --device /dev/net/tun
         -v /var/lib/openvpn:/openvpn
-        openvpn/openvpn-as:2.14.3
+        openvpn/openvpn-as:3.2.2-413ca39f-Ubuntu24
 
       ports:
         - port: 943
@@ -51,17 +51,29 @@ zerops:
             -e RCLONE_CONFIG_R2_ACCESS_KEY_ID
             -e RCLONE_CONFIG_R2_SECRET_ACCESS_KEY
             -v /var/lib/vpnbackup:/data
-            rclone/rclone:1.71.0
+            rclone/rclone:1.75.1
             copyto /data/openvpn-$STAMP.tar.gz r2:$R2_BUCKET/openvpn/openvpn-$STAMP.tar.gz;
             docker run --rm
-            -e RCLONE_CONFIG_R2_TYPE -e RCLONE_CONFIG_R2_PROVIDER
-            -e RCLONE_CONFIG_R2_REGION -e RCLONE_CONFIG_R2_ACL
+            -e RCLONE_CONFIG_R2_TYPE
+            -e RCLONE_CONFIG_R2_PROVIDER
+            -e RCLONE_CONFIG_R2_REGION
+            -e RCLONE_CONFIG_R2_ACL
             -e RCLONE_CONFIG_R2_ENDPOINT
             -e RCLONE_CONFIG_R2_ACCESS_KEY_ID
             -e RCLONE_CONFIG_R2_SECRET_ACCESS_KEY
             -v /var/lib/vpnbackup:/data
-            rclone/rclone:1.71.0
+            rclone/rclone:1.75.1
             copyto /data/openvpn-$STAMP.tar.gz r2:$R2_BUCKET/openvpn/latest.tar.gz;
-            sudo find /var/lib/vpnbackup -name 'openvpn-*.tar.gz' -mtime +3 -delete
+            sudo find /var/lib/vpnbackup -name 'openvpn-*.tar.gz' -mtime +3 -delete;
+            docker run --rm
+            -e RCLONE_CONFIG_R2_TYPE
+            -e RCLONE_CONFIG_R2_PROVIDER
+            -e RCLONE_CONFIG_R2_REGION
+            -e RCLONE_CONFIG_R2_ACL
+            -e RCLONE_CONFIG_R2_ENDPOINT
+            -e RCLONE_CONFIG_R2_ACCESS_KEY_ID
+            -e RCLONE_CONFIG_R2_SECRET_ACCESS_KEY
+            rclone/rclone:1.75.1
+            delete r2:$R2_BUCKET/openvpn/ --min-age 30d --include 'openvpn-*.tar.gz'
           timing: "15 3 * * *"
           allContainers: false
