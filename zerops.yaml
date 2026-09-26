@@ -19,6 +19,7 @@ zerops:
       envVariables:
         VPN_PUBLIC_HOST: 2a00:1ed0:1100::160:0:3252
         VPN_UDP_PORT: "51194"
+        VPN_TCP_PORT: "8443"
         R2_BUCKET: openvpn-backup
         RCLONE_CONFIG_R2_TYPE: s3
         RCLONE_CONFIG_R2_PROVIDER: Cloudflare
@@ -27,6 +28,8 @@ zerops:
 
       start: >
         bash -c '
+        IP4=$(ip -4 -o addr show scope global | awk "{print \$4}" | cut -d/ -f1 | head -1);
+        echo "using host.name=$IP4";
         docker rm -f openvpn-as 2>/dev/null || true;
         docker run -d --name openvpn-as --network=host
         --privileged --cap-add=NET_ADMIN --device /dev/net/tun
@@ -36,7 +39,9 @@ zerops:
           docker exec openvpn-as sacli VPNStatus >/dev/null 2>&1 && break;
           sleep 2;
         done;
-        docker exec openvpn-as sacli --key "host.name" --value "$VPN_PUBLIC_HOST" ConfigPut;
+        docker exec openvpn-as sacli --key "host.name" --value "$IP4" ConfigPut;
+        docker exec openvpn-as sacli --key "vpn.server.daemon.udp.port" --value "$VPN_UDP_PORT" ConfigPut;
+        docker exec openvpn-as sacli --key "vpn.server.daemon.tcp.port" --value "$VPN_TCP_PORT" ConfigPut;
         docker exec openvpn-as sacli --key "vpn.daemon.0.listen.ip_address" --value "::" ConfigPut;
         docker exec openvpn-as sacli --key "vpn.daemon.0.listen.port" --value "$VPN_UDP_PORT" ConfigPut;
         docker exec openvpn-as sacli --key "vpn.daemon.0.listen.protocol" --value "udp" ConfigPut;
