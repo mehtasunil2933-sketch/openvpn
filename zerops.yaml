@@ -31,7 +31,7 @@ zerops:
 
       ports:
         - port: 943
-          httpSupport: true
+          protocol: tcp
         - port: 443
           protocol: tcp
         - port: 1194
